@@ -1,4 +1,4 @@
-network-centric
+Team
 ===============
 
 The Steam for terminal-based games
