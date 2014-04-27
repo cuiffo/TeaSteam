@@ -1,14 +1,31 @@
 GCC= gcc
 FLAGS= -Wall
 LIBS= -lncurses
+apps = connectFour
+targets = $(addprefix bin/,$(apps))
 
-games: obj/connectFour.o
-	mkdir -p bin; \
-	$(GCC) $(FLAGS) -o bin/connectFour obj/connectFour.o $(LIBS)
+.PHONY: clean all $(apps)
 
-obj/connectFour.o: src/connectFour.c
-	mkdir -p obj; \
-	$(GCC) $(FLAGS) -c -o obj/connectFour.o src/connectFour.c $(LIBS)
+all: $(apps)
+
+$(apps): $(targets) 
+
+bin/%: obj%.o | bin
+	$(GCC) $(FLAGS) -o $@ $< $(LIBS)
+
+obj/%.o: src/%.c | obj
+	$(GCC) $(FLAGS) -MMD -c -o $@ $< $(LIBS)
 
 clean:
-	rm obj/* bin/*
+	rm -r obj bin
+
+-include obj/*.d
+
+print-%:
+    @echo '$*=$($*)'
+
+bin:
+	mkdir -p bin
+
+obj:
+	mkdir -p obj
