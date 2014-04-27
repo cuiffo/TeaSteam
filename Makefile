@@ -8,16 +8,16 @@ targets = $(addprefix bin/,$(apps))
 
 all: $(apps)
 
-$(apps): $(targets) 
+%: bin/%
 
-bin/%: obj%.o | bin
+bin/%: obj/%.o | bin
 	$(GCC) $(FLAGS) -o $@ $< $(LIBS)
 
 obj/%.o: src/%.c | obj
 	$(GCC) $(FLAGS) -MMD -c -o $@ $< $(LIBS)
 
 clean:
-	rm -r obj bin
+	rm -r obj $(targets)
 
 -include obj/*.d
 
