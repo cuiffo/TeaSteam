@@ -49,7 +49,7 @@ def start_game(game, room):
     # client[1] is an address tuple: (hostname, port)
     for client in room:
         p.stdin.write(
-            inet_aton(client[0][0]) # convert quad-dot formatted address to binary
+            inet_aton(client[1][0]) # convert quad-dot formatted address to binary
             + pack("!H",client[1][1]) # pack port into a uint16 in network byte order
             )
         client.send(pack("!H",port))
