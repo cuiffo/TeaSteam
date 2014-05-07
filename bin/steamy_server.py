@@ -40,7 +40,7 @@ def start_game(game, room):
     respond in kind with its socket address information, which should be used to
     contact the individual game clients."""
 
-    p = Popen(["",game+"_server"],stdin=PIPE,stdout=PIPE)
+    p = Popen([game+"_server"],stdin=PIPE,stdout=PIPE)
 
     # Read the server port as a uint16 and transmit to clients
     port = p.stdout.read(2)
