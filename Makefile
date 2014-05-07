@@ -5,13 +5,15 @@ LIBS = -lncurses
 ################ IMPORTANT #####################################################
 
 # Sequentially list all target binaries
-apps = connectFour
+apps = connectFour connectFour_server
 
 # Specify the names of the binaries as such
 connectFour: bin/connectFour
 
+connectFour_server: bin/connectFour_server
+
 # Copy this rule, adding any obj/*.o object files as needed before the |
-bin/connectFour: obj/%.o | bin
+bin/%: obj/%.o | bin
 	$(GCC) $(FLAGS) -o $@ $^ $(LIBS)
 
 ############ Don't worry too much about the stuff below here ###################
