@@ -32,7 +32,7 @@ def check_gamerooms(gamerooms):
     """Given a gameroom dict of deques, if a deque is full, start the given
     game, empty the deque, and return the process object."""
 
-    return [start_game(g,r) for g, r in gamerooms.items() if count(r)==r.maxlen]
+    return [start_game(g,r) for g, r in gamerooms.items() if len(r)==r.maxlen]
 
 def start_game(game, room):
     """Given a full deque for a game room, start the server of the given game
@@ -40,8 +40,7 @@ def start_game(game, room):
     respond in kind with its socket address information, which should be used to
     contact the individual game clients."""
 
-
-    p = Popen([game+"_server"],stin=PIPE,stdout=PIPE)
+    p = Popen(["",game+"_server"],stdin=PIPE,stdout=PIPE)
 
     # Read the server port as a uint16 and transmit to clients
     port = p.stdout.read(2)
@@ -50,7 +49,7 @@ def start_game(game, room):
     # client[1] is an address tuple: (hostname, port)
     for client in room:
         p.stdin.write(
-            inet_aton(client[1][0]) # convert quad-dot formatted address to binary
+            inet_aton(client[0][0]) # convert quad-dot formatted address to binary
             + pack("!H",client[1][1]) # pack port into a uint16 in network byte order
             )
         client.send(pack("!H",port))
@@ -72,7 +71,7 @@ def wait_finished_servers(servers_list):
     servers_list[:] = [s for s in servers_list if s.poll() is None]
 
 def main():
-    # create a nonblocking server on 
+    # create a nonblocking server on
     server = socket(AF_INET, SOCK_STREAM)
     server.setblocking(0)
     server.bind(('localhost',5774))
@@ -83,7 +82,7 @@ def main():
     outputs = []
 
     # create a dictionary of game room deques
-    gamerooms = { "snake" : deque(maxlen=2) } 
+    gamerooms = { "connectFour" : deque(maxlen=2) }
 
     # create a list of active game servers
     activeservers = []
