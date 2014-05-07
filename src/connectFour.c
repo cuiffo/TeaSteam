@@ -7,6 +7,7 @@
 #include <arpa/inet.h>
 #include <netdb.h>
 #include <inttypes.h>
+#include <unistd.h>
 
 typedef struct sockaddr SA;
 
@@ -53,7 +54,6 @@ void fillPlayer(WINDOW* window, int player);
 void fillCur(WINDOW* window);
 void draw(WINDOW* window);
 int playMove(int col, int player);
-int checkWin();
 int open_clientfd(char* host, int port);
 int waitForReady();
 int submitMove(int fd, int col);
@@ -157,23 +157,7 @@ int main() {
       if (gameover)
         break;
 
-
-      // if (playMove() == 0)
-      //   continue;
-      // win = checkWin();
-      //  if (win) {
-      //    wclear(window);
-      //    draw(window);
-      //    break;
-      //  }
-      //turns++;
-      //curPlayer = (curPlayer == 1) ? 2 : 1;
-      //curLocation = 3;
-      //wclear(window);
-      //draw(window);
-      //if (turns == SPOTS_X*SPOTS_Y)
-      //  break;
-
+      curLocation = 3;
     }
   }
 
@@ -214,21 +198,6 @@ void draw(WINDOW* window) {
     mvwprintw(window, 2, 3, "Press any button to exit.");
   }
 
-  /*
-  if (turns == SPOTS_X*SPOTS_Y) {
-    mvwprintw(window, 1, 11, "It's a tie!");
-    mvwprintw(window, 2, 3, "Press any button to exit.");
-  } else if (win_status == 0) {
-    mvwprintw(window, 1, 8, "Player %i's Turn", curPlayer);
-  } else {
-    wattrset(window, COLOR_PAIR(win+2));
-    mvwprintw(window, 1, 9, "Player %i wins!", curPlayer);
-    wattrset(window, COLOR_PAIR(1));
-    mvwprintw(window, 2, 3, "Press any button to exit.");
-  }
-
-  */
-
   // Draw the board
   wattrset(window, COLOR_PAIR(2));
   fillBoard(window, boardWidth);
@@ -251,6 +220,10 @@ void draw(WINDOW* window) {
   curs_set(0);
 }
 
+
+/*
+ * Initialize the graphics.
+ */
 void init() {
 
   // Initialize our ncurses screen.
@@ -263,6 +236,11 @@ void init() {
   keypad(stdscr, TRUE);
 }
 
+
+/*
+ * Initialize a few colors that will help make our screen look
+ * nice and purty.
+ */
 void initColors() {
   short FG = COLOR_WHITE;
   short BG = COLOR_BLACK;
@@ -285,6 +263,10 @@ void initColors() {
   init_pair(p2Num, p2FG, p2BG);
 }
 
+
+/*
+ * Fill in the yellow background for the board.
+ */
 void fillBoard(WINDOW* window, int width) {
   char *blank = malloc(width+1);
   memset(blank, ' ', width);
@@ -296,6 +278,11 @@ void fillBoard(WINDOW* window, int width) {
   free(blank);
 }
 
+
+/*
+ * Fill in the holes of the board with the color of the
+ * background (gray).
+ */
 void fillHoles(WINDOW* window) {
   char *blank = malloc(SPOT_WIDTH+1);
   memset(blank, ' ', SPOT_WIDTH);
@@ -308,6 +295,11 @@ void fillHoles(WINDOW* window) {
   free(blank);
 }
 
+
+/*
+ * Fill in all spots in the board that have already been occupied by
+ * a player.
+ */
 void fillPlayer(WINDOW* window, int player) {
   char *blank = malloc(SPOT_WIDTH+1);
   memset(blank, ' ', SPOT_WIDTH);
@@ -321,6 +313,11 @@ void fillPlayer(WINDOW* window, int player) {
   free(blank);
 }
 
+
+/*
+ * Fill in the disk that hovers just over the board if we 
+ * want it to show.
+ */
 void fillCur(WINDOW* window) {
   char *blank = malloc(SPOT_WIDTH+1);
   memset(blank, ' ', SPOT_WIDTH);
@@ -329,6 +326,10 @@ void fillCur(WINDOW* window) {
   free(blank);
 }
 
+
+/*
+ * Move a disk onto the board.
+ */
 int playMove(int col, int player) {
   int i;
   for (i = 5; i >= 0; --i) {
@@ -341,67 +342,11 @@ int playMove(int col, int player) {
   return 0;
 }
 
-int checkWin() {
 
-  // Check horizontals
-  int row;
-  for (row = 0; row < 6; ++row) {
-    int piece;
-    for (piece = 0; piece < 4; ++piece) {
-      int piece2;
-      for (piece2 = piece+1; piece2 < piece+4; ++piece2)
-        if (board[row*7+piece2] != board[row*7+piece] ||
-            board[row*7+piece] == 0)
-          break;
-      if (piece2 == piece+4)
-        return board[row*7+piece];
-    }
-  }
-
-
-  for (row = 0; row < 3; ++row) {
-
-    // Check verticals.
-    int piece;
-    for (piece = 0; piece < 7; ++piece) {
-      int row2;
-      for (row2 = row+1; row2 < row+4; ++row2)
-        if (board[row2*7+piece] != board[row*7+piece] ||
-            board[row*7+piece] == 0)
-          break;
-      if (row2 == row+4)
-        return board[row*7+piece];
-    }
-
-    // Check negative diagonals
-    for (piece = 0; piece < 4; ++piece) {
-      int offset;
-      for (offset = 1; offset < 4; ++offset) {
-        if (board[(row+offset)*7+piece+offset] != board[row*7+piece] ||
-            board[row*7+piece] == 0)
-          break;
-      }
-      if (offset == 4)
-        return board[row*7+piece];
-    }
-
-    // Check positive diagonals
-    for (piece = 3; piece < 7; ++piece) {
-      int offset;
-      for (offset = 1; offset < 4; ++offset) {
-        if (board[(row+offset)*SPOTS_X+piece-offset] != board[row*SPOTS_X+piece] ||
-            board[row*7+piece] == 0)
-          break;
-      }
-      if (offset == 4)
-        return board[row*SPOTS_X+piece];
-    }
-  }
-
-  return 0;
-}
-
-
+/*
+ * Wait for the server to establish the game and assign
+ * players.
+ */
 int waitForReady() {
 
   // Tell the server that we want to play a game.
@@ -464,18 +409,31 @@ int submitMove(int fd, int col) {
 }
 
 
+/*
+ * Wait for the oppent to have made a move.
+ */ 
 int waitForOpponent(int fd, int *col) {
   
-  // Recieve the move
-  char res[10];
-  read(fd, res, 10);
-  if (res[0] == 3)
-    *col = (int)res[1];
+  // Loop incase we recieve some junk.
+  char res[32];
+  while (1) {
+    read(fd, res, 32);
+
+    // If the opcode is 3, then we recieved a move.
+    if (res[0] == 3) {
+      *col = (int)res[1];
+      break;
+    }
+  }
 
   return (int)res[0];
 }
 
 
+/*
+ * Register that a disk has been dropped by the specified 
+ * player. After this is complete, redraw the screen.
+ */
 void dropDisk(int col, int player, WINDOW* window) {
   playMove(col, player);
   turns++;
@@ -485,6 +443,11 @@ void dropDisk(int col, int player, WINDOW* window) {
   draw(window);
 }
 
+
+/*
+ * Gets a move by the opponent and take the appropriate
+ * action for the consequences of that move.
+ */
 int opponentTurn(int fd, WINDOW* window) {
   int col = 0;
   int result = waitForOpponent(fd, &col);

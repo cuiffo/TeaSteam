@@ -63,7 +63,7 @@ int main(int argc, char** argv) {
   // Tell the clients we're ready to begin the game.
   for (i = 0; i < CLIENT_NUM; ++i) {
     char msg[2];
-    
+
     // OPCODE 1 tells clients it's time.
     msg[0] = 1;
 
@@ -80,7 +80,11 @@ int main(int argc, char** argv) {
 
     char msg[2];
     ssize_t size = read(clientfds[playerTurn-1], msg, 2);
-    
+    if (size == 0) {
+      perror(NULL);
+      continue;
+    }
+
     // If this message is OPCODE 2, we care about it.
     if (msg[0] == 2) {
       if (playMove(board, msg[1], playerTurn)) {
@@ -183,33 +187,55 @@ int checkWin(int* board) {
 }
 
 
+/*
+ * Sends the successful column entry to both clients so they may
+ * update their screens and the opponent may continue.
+ */
 int sendSuccessfulMove(int* fds, int col) {
   char msg[2];
   msg[0] = 3;
   msg[1] = (char)col;
   int i;
   for (i = 0 ; i < CLIENT_NUM; ++i) {
-    if (write(fds[i], msg, 2) < 0)
+    if (write(fds[i], msg, 2) < 0) {
       perror(NULL);
+      return 0;
+    }
   }
+  return 1;
 }
 
+
+/*
+ * Send a failed move notification to the current player so they 
+ * fix the error of their ways and try again.
+ */
 int sendFailedMove(int fd) {
   char msg[1];
   msg[0] = 4;
-  if (write(fd, msg, 1) < 0)
+  if (write(fd, msg, 1) < 0) {
     perror(NULL);
+    return 0;
+  }
+  return 1;
 }
 
+
+/*
+ * Tells both clients that the current player has won the game.
+ */
 int sendWinner(int* fds, int winner) {
   char msg[2];
   msg[0] = 5;
   msg[1] = (char)winner;
   int i;
   for (i = 0 ; i < CLIENT_NUM; ++i) {
-    if (write(fds[i], msg, 2) < 0)
+    if (write(fds[i], msg, 2) < 0) {
       perror(NULL);
+      return 0;
+    }
   }
+  return 1;
 }
 
 
@@ -220,26 +246,26 @@ int sendWinner(int* fds, int winner) {
  */
 int open_listenfd(int portnum) {
 
-    int listenfd, optval=1;
-    struct sockaddr_in serveraddr;
+  int listenfd, optval=1;
+  struct sockaddr_in serveraddr;
 
-    if ((listenfd = socket(AF_INET, SOCK_STREAM, 0)) < 0)
-        return -1;
+  if ((listenfd = socket(AF_INET, SOCK_STREAM, 0)) < 0)
+    return -1;
 
-    if (setsockopt(listenfd, SOL_SOCKET, SO_REUSEADDR,
-            (const void *) &optval, sizeof(int)) < 0)
-        return -1;
+  if (setsockopt(listenfd, SOL_SOCKET, SO_REUSEADDR,
+        (const void *) &optval, sizeof(int)) < 0)
+    return -1;
 
-    bzero((char *)&serveraddr, sizeof(serveraddr));
-    serveraddr.sin_family = AF_INET;
-    serveraddr.sin_addr.s_addr = htonl(INADDR_ANY);
-    serveraddr.sin_port = htons((unsigned short) portnum);
+  bzero((char *)&serveraddr, sizeof(serveraddr));
+  serveraddr.sin_family = AF_INET;
+  serveraddr.sin_addr.s_addr = htonl(INADDR_ANY);
+  serveraddr.sin_port = htons((unsigned short) portnum);
 
-    if (bind(listenfd, (struct sockaddr*)&serveraddr, sizeof(serveraddr)) < 0)
-        return -1;
+  if (bind(listenfd, (struct sockaddr*)&serveraddr, sizeof(serveraddr)) < 0)
+    return -1;
 
-    if (listen(listenfd, 1024) < 0)
-        return -1;
+  if (listen(listenfd, 1024) < 0)
+    return -1;
 
-    return listenfd;
+  return listenfd;
 }
