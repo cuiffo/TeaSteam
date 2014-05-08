@@ -59,14 +59,14 @@ def start_game(game, room):
     port = p.stdout.read(2)
 
     # Write the addresses of the clients to the new process
+    # client[0] is a socket
     # client[1] is an address tuple: (hostname, port)
     for client in room:
         p.stdin.write(
             inet_aton(client[1][0]) # convert quad-dot formatted address to binary
-            + pack("!H",client[1][1]) # pack port into a uint16 in network byte order
-            )
-        client.send(pack("!H",port))
-        client.close()
+            + pack("!H",client[1][1])) # pack port into a uint16 in network byte order
+        client[0].send(pack("!H",port))
+        client[0].close()
 
     # clear deque
     room.clear()
