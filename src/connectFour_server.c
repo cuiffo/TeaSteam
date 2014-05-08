@@ -21,12 +21,14 @@
 /*
  * Function prototypes.
  */
+int initConnections(struct sockaddr_in* clients, int* clientfds, int listenfd);
 int playMove(int* board, int col, int player);
 int checkWin(int* board);
 int open_listenfd(int);
 int sendSuccessfulMove(int* fds, int col);
 int sendFailedMove(int fd);
 int sendWinner(int* fds, int winner);
+int closeConnections(int* clientfds);
 
 
 int main(int argc, char** argv) {
@@ -43,35 +45,9 @@ int main(int argc, char** argv) {
   }
 
   // Initialize our connections to the clients.
-  int i;
-  for (i = 0; i < CLIENT_NUM; ++i) {
-
-    // Find each client from the server (from a pipe of stdin).
-    char clientData[1000];
-    scanf("%s", clientData);
-    printf("%s\n" , clientData);
-
-    // Create a connection between us and the current client.
-    int clientfd = accept(listenfd, (struct sockaddr*)&clients[i], &sock_size);
-    if (clientfd < 0) {
-      perror(NULL);
-      exit(0);
-    }
-    clientfds[i] = clientfd;
+  if (initConnections(clients, clientfds, listenfd) == 0) {
+    return -1;
   }
-
-  // Tell the clients we're ready to begin the game.
-  for (i = 0; i < CLIENT_NUM; ++i) {
-    char msg[2];
-
-    // OPCODE 1 tells clients it's time.
-    msg[0] = 1;
-
-    // Send the player number with this OPCODE.
-    msg[1] = i+1;
-    write(clientfds[i], msg, 2);
-  }
-
 
   // The game is running, keep listening for moves by players.
   int board[SPOTS_X*SPOTS_Y] = {0};
@@ -102,7 +78,49 @@ int main(int argc, char** argv) {
     }
   }
 
+  closeConnections(clientfds);
+
   exit(0);
+}
+
+
+/*
+ * Create the connections to the clients.
+ */
+int initConnections(struct sockaddr_in* clients, int* clientfds, int listenfd) {
+  socklen_t sock_size = sizeof(struct sockaddr_in);
+
+  // Accept connections from both clients.
+  int i;
+  for (i = 0; i < CLIENT_NUM; ++i) {
+
+    // Find each client from the server (from a pipe of stdin).
+    char clientData[1000];
+    scanf("%s", clientData);
+    printf("%s\n" , clientData);
+
+    // Create a connection between us and the current client.
+    int clientfd = accept(listenfd, (struct sockaddr*)&clients[i], &sock_size);
+    if (clientfd < 0) {
+      perror(NULL);
+      return 0;
+    }
+    clientfds[i] = clientfd;
+  }
+
+  // Tell the clients we're ready to begin the game.
+  for (i = 0; i < CLIENT_NUM; ++i) {
+    char msg[2];
+
+    // OPCODE 1 tells clients it's time.
+    msg[0] = 1;
+
+    // Send the player number with this OPCODE.
+    msg[1] = i+1;
+    write(clientfds[i], msg, 2);
+  }
+
+  return 1;
 }
 
 
@@ -235,6 +253,21 @@ int sendWinner(int* fds, int winner) {
       return 0;
     }
   }
+  return 1;
+}
+
+
+/*
+ * Closes the connections to the clients.
+ */
+int closeConnections(int* clientfds) {
+
+  // Close each client separately.
+  int i;
+  for (i = 0; i < CLIENT_NUM; ++i)
+    if (close(clientfds[i]) < 0)
+      return 0;
+
   return 1;
 }
 

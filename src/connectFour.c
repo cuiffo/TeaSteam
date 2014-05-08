@@ -164,6 +164,9 @@ int main() {
   // Wait until user presses a button.
   wgetch(window);
 
+  // Close the connection
+  close(fd);
+
   // Close the screen.
   endwin();
   return 0;
@@ -383,6 +386,9 @@ int waitForReady() {
       break;
     }
   }
+
+  // Close the connection to the main server because it's not needed.
+  close(fd);
 
   return gamefd;
 }
