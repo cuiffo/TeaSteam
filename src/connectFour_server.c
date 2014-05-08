@@ -28,6 +28,7 @@ int open_listenfd(int);
 int sendSuccessfulMove(int* fds, int col);
 int sendFailedMove(int fd);
 int sendWinner(int* fds, int winner);
+int sendTie(int* fds);
 int closeConnections(int* clientfds);
 
 
@@ -61,11 +62,12 @@ int main(int argc, char** argv) {
   // The game is running, keep listening for moves by players.
   int board[SPOTS_X*SPOTS_Y] = {0};
   int playerTurn = 1;
+  int turns = 0;
   while(1) {
 
     char msg[2];
     ssize_t size = read(clientfds[playerTurn-1], msg, 2);
-    if (size == 0) {
+    if (size < 0) {
       perror(NULL);
       continue;
     }
@@ -75,13 +77,19 @@ int main(int argc, char** argv) {
       if (playMove(board, msg[1], playerTurn)) {
         int win = checkWin(board);
         if (win) {
+          fprintf(stderr, "Winner\n");
           sendWinner(clientfds, win);
           break;
         } else {
+          turns++;
+          if (turns == SPOTS_X*SPOTS_Y)
+            sendTie(clientfds);
+          fprintf(stderr, "Move piece in col %i\n", (int)msg[1]);
           sendSuccessfulMove(clientfds, msg[1]);
         }
         playerTurn = (playerTurn == 1) ? 2 : 1;
       } else {
+        fprintf(stderr, "Failed Move\n");
         sendFailedMove(clientfds[playerTurn-1]);
       }
     }
@@ -224,6 +232,24 @@ int sendSuccessfulMove(int* fds, int col) {
   int i;
   for (i = 0 ; i < CLIENT_NUM; ++i) {
     if (write(fds[i], msg, 2) < 0) {
+      perror(NULL);
+      return 0;
+    }
+  }
+  return 1;
+}
+
+
+/*
+ * Sends the successful column entry to both clients so they may
+ * update their screens and the opponent may continue.
+ */
+int sendTie(int* fds) {
+  char msg[1];
+  msg[0] = 6;
+  int i;
+  for (i = 0 ; i < CLIENT_NUM; ++i) {
+    if (write(fds[i], msg, 1) < 0) {
       perror(NULL);
       return 0;
     }

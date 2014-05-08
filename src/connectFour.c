@@ -138,21 +138,20 @@ int main() {
 
       // But if we won with it, awesome.
       else if (result == 5)
-        win_status = 1;
+        win_status = playerNum;
 
       // Or maybe it ended up with a tie.
       else if (result == 6)
         win_status = 3;
 
       // If we're here then our result was 3, meaning a successful move.
-      dropDisk(curLocation, window);
+      dropDisk(curLocation, curPlayer, window);
 
       // If the win_status has changed, we're done.
       if (win_status != 0)
         break;
 
       // Now wait for the other user to go.
-      curPlayer = (curPlayer == 1) ? 2 : 1;
       int gameover = opponentTurn(fd, window);
       if (gameover)
         break;
@@ -180,24 +179,24 @@ void draw(WINDOW* window) {
   touchwin(window);
 
   // Text on top
+  int opponent = (playerNum == 1) ? 2 : 1;
   if (win_status == 0) {
     if (curPlayer == playerNum)
-      mvwprintw(window, 1, 10, "Your turn!", curPlayer);
+      mvwprintw(window, 1, 10, "Your turn!");
     else 
-      mvwprintw(window, 1, 6, "Waiting for opponent", curPlayer);
-  } else if (win_status == 1) {
+      mvwprintw(window, 1, 6, "Waiting for opponent");
+  } else if (win_status == playerNum) {
     wattrset(window, COLOR_PAIR(playerNum+2));
-    mvwprintw(window, 1, 10, "YOU WIN!", curPlayer);
+    mvwprintw(window, 1, 10, "YOU WIN!");
     wattrset(window, COLOR_PAIR(1));
     mvwprintw(window, 2, 3, "Press any button to exit.");
-  } else if (win_status == 2) {
-    int opponent = (playerNum == 1) ? 2 : 1;
+  } else if (win_status == opponent) {
     wattrset(window, COLOR_PAIR(opponent+2));
-    mvwprintw(window, 1, 9, "You lose :(", curPlayer);
+    mvwprintw(window, 1, 9, "You lose :(");
     wattrset(window, COLOR_PAIR(1));
     mvwprintw(window, 2, 3, "Press any button to exit.");
   } else if (win_status == 3) {
-    mvwprintw(window, 1, 9, "Yay, a tie!", curPlayer);
+    mvwprintw(window, 1, 9, "Yay, a tie!");
     mvwprintw(window, 2, 3, "Press any button to exit.");
   }
 
@@ -431,6 +430,8 @@ int waitForOpponent(int fd, int *col) {
     if (res[0] == 3) {
       *col = (int)res[1];
       break;
+    } else {
+      break;
     }
   }
 
@@ -461,8 +462,9 @@ int opponentTurn(int fd, WINDOW* window) {
   int result = waitForOpponent(fd, &col);
 
   // They won...
-  if (result == 5)
-    win_status = 2;
+  if (result == 5) {
+    win_status = (playerNum == 1) ? 2 : 1;
+  }
 
   // We tied!
   else if (result == 6)
@@ -470,7 +472,6 @@ int opponentTurn(int fd, WINDOW* window) {
 
   // Our turn! Drop the opponent disk and get outta here.
   dropDisk(col, curPlayer, window);
-  curPlayer = (curPlayer == 1) ? 2 : 1;
 
   // If the win_status has changed, we're done.
   if (win_status != 0)
