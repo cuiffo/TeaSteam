@@ -39,13 +39,21 @@ int main(int argc, char** argv) {
 
   // create a new TCP server on a random port and get that port number
   listenfd = open_listenfd(0);
-  if (getsockname(listenfd, (struct sockaddr*)&server, &sock_size) < 0) {
+  if (listenfd < 0) {
     perror(NULL);
     return -1;
   }
+  if (getsockname(listenfd, (struct sockaddr*)&server, &sock_size) < 0) {
+    perror(NULL);
+    close(listenfd);
+    return -1;
+  }
+  fprintf(stdout, "%hu\n", ntohs(server.sin_port));
+  fflush(stdout);
 
   // Initialize our connections to the clients.
   if (initConnections(clients, clientfds, listenfd) == 0) {
+    close(listenfd);
     return -1;
   }
 
