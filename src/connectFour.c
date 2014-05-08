@@ -105,11 +105,16 @@ int main() {
       gameInProgress = 0;
   }
 
+  // Flush the input buffer
+  nodelay(window, true);
+  while (wgetch(window) != ERR);
+  nodelay(window, false);
+
   // Wait for a character input
   while(gameInProgress) {
 
     // Get the next key pressed.
-    int c = wgetch(window);
+    char c = wgetch(window);
 
     // We only care about left, right and enter.
     if (c == 67) {
@@ -144,6 +149,9 @@ int main() {
       else if (result == 6)
         win_status = 3;
 
+      else if (result == 7)
+        win_status = 4;
+
       // If we're here then our result was 3, meaning a successful move.
       dropDisk(curLocation, curPlayer, window);
 
@@ -157,8 +165,19 @@ int main() {
         break;
 
       curLocation = 3;
+
+
+      // Flush the character buffer.
+      nodelay(window, true);
+      while (wgetch(window) != ERR);
+      nodelay(window, false);
     }
   }
+
+  // Flush the character buffer.
+  nodelay(window, true);
+  while (wgetch(window) != ERR);
+  nodelay(window, false);
 
   // Wait until user presses a button.
   wgetch(window);
@@ -197,6 +216,9 @@ void draw(WINDOW* window) {
     mvwprintw(window, 2, 3, "Press any button to exit.");
   } else if (win_status == 3) {
     mvwprintw(window, 1, 9, "Yay, a tie!");
+    mvwprintw(window, 2, 3, "Press any button to exit.");
+  } else if (win_status == 4) {
+    mvwprintw(window, 1, 7, "Connection lost...");
     mvwprintw(window, 2, 3, "Press any button to exit.");
   }
 
@@ -378,7 +400,7 @@ int waitForReady() {
   // Wait for the server to tell us we're all ready.
   int ready = 0;
   while (!ready) {
-    if (read(gamefd, msg, 32) < 0) {
+    if (read(gamefd, msg, 32) == 0) {
       perror(NULL);
       exit(0);
     }
@@ -406,11 +428,13 @@ int submitMove(int fd, int col) {
   char msg[2];
   msg[0] = 2;
   msg[1] = (char)col;
-  write(fd, msg, 2);
+  if (write(fd, msg, 2) < 0)
+    return 7;
 
   // Recieve the response.
   char res[10];
-  read(fd, res, 10);
+  if (read(fd, res, 10) == 0)
+    return 7;
 
   return (int)res[0];
 }
@@ -424,10 +448,11 @@ int waitForOpponent(int fd, int *col) {
   // Loop incase we recieve some junk.
   char res[32];
   while (1) {
-    read(fd, res, 32);
+    if (read(fd, res, 32) == 0)
+      return 7;
 
     // If the opcode is 3, then we recieved a move.
-    if (res[0] == 3) {
+    if (res[0] == 3 || res[0] == 5) {
       *col = (int)res[1];
       break;
     } else {
@@ -462,13 +487,21 @@ int opponentTurn(int fd, WINDOW* window) {
   int result = waitForOpponent(fd, &col);
 
   // They won...
-  if (result == 5) {
+  if (result == 5)
     win_status = (playerNum == 1) ? 2 : 1;
-  }
+  
 
   // We tied!
   else if (result == 6)
     win_status = 3;
+
+  // Connection problem
+  else if (result == 7) {
+    win_status = 4;
+    wclear(window);
+    draw(window);
+    return 1;
+  }
 
   // Our turn! Drop the opponent disk and get outta here.
   dropDisk(col, curPlayer, window);

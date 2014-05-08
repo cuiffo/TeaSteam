@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <strings.h>
 #include <unistd.h>
 
 #include <netdb.h>
@@ -27,9 +28,10 @@ int checkWin(int* board);
 int open_listenfd(int);
 int sendSuccessfulMove(int* fds, int col);
 int sendFailedMove(int fd);
-int sendWinner(int* fds, int winner);
+int sendWinner(int* fds, int col);
 int sendTie(int* fds);
 int closeConnections(int* clientfds);
+void abortGame(int* fds);
 
 
 int main(int argc, char** argv) {
@@ -61,15 +63,17 @@ int main(int argc, char** argv) {
 
   // The game is running, keep listening for moves by players.
   int board[SPOTS_X*SPOTS_Y] = {0};
+  bzero(board, SPOTS_X*SPOTS_Y);
   int playerTurn = 1;
   int turns = 0;
   while(1) {
 
     char msg[2];
     ssize_t size = read(clientfds[playerTurn-1], msg, 2);
-    if (size < 0) {
+    if (size == 0) {
       perror(NULL);
-      continue;
+      abortGame(clientfds);
+      break;
     }
 
     // If this message is OPCODE 2, we care about it.
@@ -78,14 +82,19 @@ int main(int argc, char** argv) {
         int win = checkWin(board);
         if (win) {
           fprintf(stderr, "Winner\n");
-          sendWinner(clientfds, win);
+          sendWinner(clientfds, msg[1]);
           break;
         } else {
           turns++;
-          if (turns == SPOTS_X*SPOTS_Y)
+          if (turns == SPOTS_X*SPOTS_Y) {
             sendTie(clientfds);
+            break;
+          }
           fprintf(stderr, "Move piece in col %i\n", (int)msg[1]);
-          sendSuccessfulMove(clientfds, msg[1]);
+          if (sendSuccessfulMove(clientfds, msg[1]) == 0) {
+            abortGame(clientfds);
+            break;
+          }
         }
         playerTurn = (playerTurn == 1) ? 2 : 1;
       } else {
@@ -241,8 +250,8 @@ int sendSuccessfulMove(int* fds, int col) {
 
 
 /*
- * Sends the successful column entry to both clients so they may
- * update their screens and the opponent may continue.
+ * Sends the tie command to both clients as well as the piece
+ * played that resulted in this.
  */
 int sendTie(int* fds) {
   char msg[1];
@@ -276,10 +285,10 @@ int sendFailedMove(int fd) {
 /*
  * Tells both clients that the current player has won the game.
  */
-int sendWinner(int* fds, int winner) {
+int sendWinner(int* fds, int col) {
   char msg[2];
   msg[0] = 5;
-  msg[1] = (char)winner;
+  msg[1] = (char)col;
   int i;
   for (i = 0 ; i < CLIENT_NUM; ++i) {
     if (write(fds[i], msg, 2) < 0) {
@@ -288,6 +297,22 @@ int sendWinner(int* fds, int winner) {
     }
   }
   return 1;
+}
+
+
+/*
+ * Sends both players an error.
+ */
+void abortGame(int* fds) {
+  char msg[1];
+  msg[0] = 7;
+  int i;
+  for (i = 0 ; i < CLIENT_NUM; ++i) {
+          fprintf(stderr, "Game Broken\n");
+    if (write(fds[i], msg, 1) < 0) {
+      perror(NULL);
+    }
+  }
 }
 
 
