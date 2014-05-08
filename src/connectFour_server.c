@@ -48,8 +48,8 @@ int main(int argc, char** argv) {
     close(listenfd);
     return -1;
   }
-  fprintf(stdout, "%hu\n", ntohs(server.sin_port));
-  fflush(stdout);
+  unsigned short port = ntohs(server.sin_port);
+  write(1, &port, 2);
 
   // Initialize our connections to the clients.
   if (initConnections(clients, clientfds, listenfd) == 0) {
@@ -104,8 +104,7 @@ int initConnections(struct sockaddr_in* clients, int* clientfds, int listenfd) {
 
     // Find each client from the server (from a pipe of stdin).
     char clientData[1000];
-    scanf("%s", clientData);
-    printf("%s\n" , clientData);
+    read(0, clientData, 1000);
 
     // Create a connection between us and the current client.
     int clientfd = accept(listenfd, (struct sockaddr*)&clients[i], &sock_size);
