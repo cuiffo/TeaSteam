@@ -1,11 +1,23 @@
 #!/usr/bin/env python
 """A python script for a matchmaking game server for the Steamy project."""
 
-from collections import deque
+#from collections import deque
+from os import path
 from select import select
 from socket import *
 from struct import pack, unpack, calcsize
 from subprocess import Popen, PIPE
+
+# thank you stackoverflow and muhammad alkarouri
+import collections
+
+class deque(collections.deque):
+    def __init__(self, iterable=(), maxlen=None):
+        super(deque, self).__init__(iterable, maxlen)
+        self._maxlen = maxlen
+    @property
+    def maxlen(self):
+       return self._maxlen
 
 def server_respond(server, gamerooms):
     """Accept on server and read handshake from accepted connection"""
@@ -40,7 +52,8 @@ def start_game(game, room):
     respond in kind with its socket address information, which should be used to
     contact the individual game clients."""
 
-    p = Popen([game+"_server"],stdin=PIPE,stdout=PIPE)
+    gamepath = path.join(path.dirname(__file__), game+"_server")
+    p = Popen([gamepath],stdin=PIPE,stdout=PIPE)
 
     # Read the server port as a uint16 and transmit to clients
     port = p.stdout.read(2)
