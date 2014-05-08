@@ -56,7 +56,8 @@ def start_game(game, room):
     p = Popen([gamepath],stdin=PIPE,stdout=PIPE)
 
     # Read the server port as a uint16 and transmit to clients
-    port = p.stdout.read(2)
+    port = unpack("=H",p.stdout.read(2))[0]
+    print("The port number appears to be {0}".format(port))
 
     # Write the addresses of the clients to the new process
     # client[0] is a socket

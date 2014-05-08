@@ -366,7 +366,7 @@ int waitForReady() {
   read(fd, res, 2);
   printf("%c%c\n", res[0], res[1]);
   read(fd, res, 2);
-  uint16_t port = ntohs(res[2]);
+  uint16_t port = ntohs(*((uint16_t*)res));
   printf("%" PRIu16 "\n", port);
 
   // Create a new connection with the other port.
