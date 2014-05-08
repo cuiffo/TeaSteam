@@ -362,10 +362,12 @@ int waitForReady() {
   write(fd, msg, 32);
 
   // Wait for the response which includes our port we will talk to later on.
-  char res[4];
-  read(fd, res, 4);
+  char res[2];
+  read(fd, res, 2);
+  printf("%c%c\n", res[0], res[1]);
+  read(fd, res, 2);
   uint16_t port = ntohs(res[2]);
-  printf("%c%c%" PRIu16 "\n", res[0], res[1], port);
+  printf("%" PRIu16 "\n", port);
 
   // Create a new connection with the other port.
   int gamefd = open_clientfd("localhost", (int)port);
