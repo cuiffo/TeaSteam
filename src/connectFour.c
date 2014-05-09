@@ -8,6 +8,7 @@
 #include <netdb.h>
 #include <inttypes.h>
 #include <unistd.h>
+#include <signal.h>
 
 typedef struct sockaddr SA;
 
@@ -258,6 +259,7 @@ void init() {
   cbreak();
   noecho();
   keypad(stdscr, TRUE);
+  signal(SIGWINCH, SIG_IGN);
 }
 
 
