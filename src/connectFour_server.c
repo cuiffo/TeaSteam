@@ -3,10 +3,11 @@
 #include <string.h>
 #include <strings.h>
 #include <unistd.h>
-
+#include <fcntl.h>
 #include <netdb.h>
 #include <sys/socket.h>
 #include <sys/types.h>
+#include <time.h>
 
 #define CLIENT_NUM 2
 
@@ -124,13 +125,22 @@ int initConnections(struct sockaddr_in* clients, int* clientfds, int listenfd) {
     char clientData[1000];
     read(STDIN_FILENO, clientData, 1000);
 
+    // Make accept non-blocking so that we can have a timer on it.
+    fcntl(listenfd, F_SETFL, O_NDELAY);
+
     // Create a connection between us and the current client.
-    int clientfd = accept(listenfd, (struct sockaddr*)&clients[i], &sock_size);
-    if (clientfd < 0) {
-      perror(NULL);
-      return 0;
+    int clientfd;
+    time_t start = time(NULL);
+    while ((clientfd = accept(listenfd, (struct sockaddr*)&clients[i], &sock_size)) < 0 ) {
+      time_t now = time(NULL);
+      if (now - start > 5) {
+        return 0;
+      }
     }
     clientfds[i] = clientfd;
+
+    // Set this back to blocking.
+    fcntl(listenfd, F_SETFL, 0);
   }
 
   // Tell the clients we're ready to begin the game.

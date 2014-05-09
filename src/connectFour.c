@@ -387,10 +387,10 @@ int waitForReady() {
   // Wait for the response which includes our port we will talk to later on.
   char res[2];
   read(fd, res, 2);
-  printf("%c%c\n", res[0], res[1]);
+  //printf("%c%c\n", res[0], res[1]);
   read(fd, res, 2);
   uint16_t port = ntohs(*((uint16_t*)res));
-  printf("%" PRIu16 "\n", port);
+  //printf("%" PRIu16 "\n", port);
 
   // Create a new connection with the other port.
   int gamefd = open_clientfd("localhost", (int)port);
@@ -403,7 +403,7 @@ int waitForReady() {
   int ready = 0;
   while (!ready) {
     if (read(gamefd, msg, 32) == 0) {
-      perror(NULL);
+      fprintf(stderr, "Opponent has disconnected.\n");
       exit(0);
     }
     if (msg[0] == 1) {
