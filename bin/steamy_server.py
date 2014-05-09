@@ -69,6 +69,9 @@ def start_game(game, room):
         client[0].send(pack("!H",port))
         client[0].close()
 
+    # close input stream on process since we're done
+    p.stdin.close()
+
     # clear deque
     room.clear()
 
