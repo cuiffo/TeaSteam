@@ -91,7 +91,7 @@ def main():
     # create a nonblocking server on
     server = socket(AF_INET, SOCK_STREAM)
     server.setblocking(0)
-    server.bind(('localhost',5774))
+    server.bind(('0.0.0.0',5774))
     server.listen(1)
 
     # create a list of sockets to listen on
