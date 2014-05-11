@@ -261,7 +261,7 @@ int waitForReady() {
 
 
   // Tell the server that we want to play a game.
-  int fd = open_clientfd("localhost", 5774);
+  int fd = open_clientfd("ecuiffo.com", 5774);
   if (fd < 0) {
     perror(NULL);
     exit(0);
@@ -276,7 +276,7 @@ int waitForReady() {
   uint16_t port = ntohs(*((uint16_t*)res));
 
   // Create a new connection with the other port.
-  int gamefd = open_clientfd("localhost", (int)port);
+  int gamefd = open_clientfd("ecuiffo.com", (int)port);
   if (gamefd < 0) {
     perror(NULL);
     exit(0);
