@@ -77,13 +77,7 @@ int main(int argc, char** argv) {
     tv.tv_usec = 0;
   
     // Perform select.
-    int retval = select(nfsd, &readfds_c, NULL, NULL, &tv);
-
-    if (retval == 0) {
-      abortGame(clientfds);
-      closeConnections(clientfds);
-      exit(0);
-    }
+    select(nfsd, &readfds_c, NULL, NULL, &tv);
 
     int i;
     for (i = 0; i < CLIENT_NUM; ++i) {

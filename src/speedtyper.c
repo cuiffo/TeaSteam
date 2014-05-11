@@ -10,6 +10,7 @@
 #include <unistd.h>
 #include <signal.h>
 #include <fcntl.h>
+#include <ctype.h>
 
 #ifndef MAX_SENTENCE_LENGTH
 #define MAX_SENTENCE_LENGTH 80
@@ -97,7 +98,7 @@ int main() {
       }
     }
 
-    if (c == sentences[youCur]) {
+    if (tolower(c) == tolower(sentences[youCur])) {
       do {
         youCur++;
       } while (sentences[youCur] == ' ');
