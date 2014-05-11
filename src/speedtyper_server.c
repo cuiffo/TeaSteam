@@ -103,12 +103,8 @@ int main(int argc, char** argv) {
   time_t curtime;
 
   int i, winner, milldiff;
-  int secdiff = times[0].tv_sec - times[1].tv_sec;
-  if (secdiff > 0)
-    milldiff = times[0].tv_usec - times[1].tv_usec;
-  else
-    milldiff = times[1].tv_usec - times[0].tv_usec;
-  float diff = (float)secdiff + ((float)milldiff)/1000000;
+  float diff = (times[0].tv_sec + ((float)times[0].tv_usec)/1000000.0) -
+    (times[1].tv_sec + ((float)times[1].tv_usec)/1000000.0);
   if (diff < 0)
     winner = 0;
   else
