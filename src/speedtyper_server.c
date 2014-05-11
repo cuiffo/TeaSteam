@@ -3,6 +3,7 @@
 #include <string.h>
 #include <strings.h>
 #include <unistd.h>
+#include <math.h>
 #include <fcntl.h>
 #include <netdb.h>
 #include <sys/socket.h>
@@ -29,6 +30,7 @@ int open_listenfd(int);
 int closeConnections(int* clientfds);
 void abortGame(int* fds);
 void addSd(int sd, fd_set* set);
+void randMsg(char* buf);
 
 
 fd_set readfds;
@@ -36,6 +38,7 @@ int nfsd;
 int endval = 0;
 
 int main(int argc, char** argv) {
+  srand(time(NULL));
 
   int listenfd, clientfds[CLIENT_NUM];
   struct sockaddr_in server, clients[CLIENT_NUM];
@@ -62,6 +65,7 @@ int main(int argc, char** argv) {
     close(listenfd);
     return -1;
   }
+
 
   // The game is running, keep listening for moves by players.
   int positions[2] = {0,0};
@@ -104,21 +108,32 @@ int main(int argc, char** argv) {
   struct timeval tv;
   time_t curtime;
 
-  int i, winner;
-  double diff = times[0].tv_usec - times[1].tv_usec;
+  int i, winner, milldiff;
+  int secdiff = times[0].tv_sec - times[1].tv_sec;
+  if (secdiff > 0)
+    milldiff = times[0].tv_usec - times[1].tv_usec;
+  else
+    milldiff = times[1].tv_usec - times[0].tv_usec;
+  float diff = (float)secdiff + ((float)milldiff)/1000000;
   if (diff < 0)
     winner = 0;
   else
     winner = 1;
 
+  diff = fabs(diff);
+  char str[6];
+  snprintf(str, 6, "%.3f", diff);
   for (i = 0; i < CLIENT_NUM; ++i) {
-    char results[2];
-    results[0] = 2;
+    char results[8];
+    results[0] = 3;
     if (i == winner)
       results[1] = 1;
     else
       results[1] = 2;
-    write(clientfds[i], results, 2);
+    memcpy(results+2, str, 6);
+    if (write(clientfds[i], results, 8) == 0) {
+      perror(NULL);
+    } 
   }
 
   closeConnections(clientfds);
@@ -160,14 +175,15 @@ int initConnections(struct sockaddr_in* clients, int* clientfds, int listenfd) {
   }
 
   // Tell the clients we're ready to begin the game.
+  char msg[100];
+  bzero(msg, 100);
+  randMsg(msg+2);
+  msg[0] = 1;
+  msg[1] = 1;
+  msg[1] = strlen(msg)-2;
+  endval = msg[1];
+  fprintf(stderr, "%s\n%i\n", msg, msg[1]);
   for (i = 0; i < CLIENT_NUM; ++i) {
-    char msg[100] = "  What's up man?";
-
-    // OPCODE 1 tells clients it's time.
-    msg[0] = 1;
-    msg[1] = strlen(msg)-2;
-
-    endval = msg[1];
 
     // Send the player number with this OPCODE.
     write(clientfds[i], msg, strlen(msg));
@@ -183,6 +199,44 @@ void addSd(int sd, fd_set* set) {
   nfsd = (nfsd-1 > sd) ? nfsd : sd+1;
 }
 
+
+void randMsg(char* buf) {
+  int num = rand()%10;
+  switch (num) {
+    case 0:
+      strncpy(buf, "Hey there, what's up?", 78);
+      break;
+    case 1:
+      strncpy(buf, "Programming is fun!", 78);
+      break;
+    case 2:
+      strncpy(buf, "Aarg, I forgot a semicolon again.", 78);
+      break;
+    case 3:
+      strncpy(buf, "foo bar baz and all that stuff", 78);
+      break;
+    case 4:
+      strncpy(buf, "for (int i = 0; i < size; ++i) {", 78);
+      break;
+    case 5:
+      strncpy(buf, "I'm not really that good at making up fake sentences.", 78);
+      break;
+    case 6:
+      strncpy(buf, "Where the A's at?", 78);
+      break;
+    case 7:
+      strncpy(buf, "Can you beat your opponent?", 78);
+      break;
+    case 8:
+      strncpy(buf, "Is that the fastest you can type?", 78);
+      break;
+    case 9:
+      strncpy(buf, "I can type this in a millisecond, how about you?", 78);
+      break;
+  }
+
+
+}
 
 /*
  * Sends both players an error.

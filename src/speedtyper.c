@@ -12,7 +12,7 @@
 #include <fcntl.h>
 
 #ifndef MAX_SENTENCE_LENGTH
-#define MAX_SENTENCE_LENGTH 78
+#define MAX_SENTENCE_LENGTH 80
 #endif
 #ifndef MAX_SENTENCES
 #define MAX_SENTENCES 5
@@ -40,6 +40,7 @@ int youDone = 0;
 int oppCur = 0;
 int oppDone = 0;
 int winner = 0;
+char windiff[6];
 
 
 
@@ -116,9 +117,11 @@ int main() {
   nodelay(youWindow, false);
 
   fcntl(fd, F_SETFL, 0);
-  char buf[2];
-  read(fd, buf, 2);
+  char buf[8];
+  read(fd, buf, 8);
   winner = (int)buf[1];
+  memcpy(windiff, buf+2, 6);
+  windiff[5] = '\0';
   wclear(youWindow);
   wclear(oppWindow);
   draw(youWindow, 0, 1);
@@ -175,8 +178,13 @@ void draw(WINDOW* window, int cur, int isYou) {
     else
       mvwprintw(window, 1, 1, "Loser!");
 
-    if (isYou)
+    if (isYou) {
+      if (winner == 1)
+        mvwprintw(window, 1, 30, "Won by %s seconds", windiff);
+      else
+        mvwprintw(window, 1, 30, "Lost by %s seconds", windiff);
       mvwprintw(window, 1, 57, "Press any key to exit.");
+    }
   } 
 
   int i;
@@ -248,13 +256,17 @@ void initColors() {
  */
 int waitForReady() {
 
+  printf("Connecting to opponent...");
+  fflush(stdout);
+
+
   // Tell the server that we want to play a game.
-  int fd = open_clientfd("ecuiffo.com", 5774);
+  int fd = open_clientfd("localhost", 5774);
   if (fd < 0) {
     perror(NULL);
     exit(0);
   }
-  char msg[32] = "\0\0\0\0\0\0\0\0speedtyper\0\0\0\0\0\0\0\0\0\0\0\0\0\0";
+  char msg[80] = "\0\0\0\0\0\0\0\0speedtyper\0\0\0\0\0\0\0\0\0\0\0\0\0\0";
   write(fd, msg, 32);
 
   // Wait for the response which includes our port we will talk to later on.
@@ -264,7 +276,7 @@ int waitForReady() {
   uint16_t port = ntohs(*((uint16_t*)res));
 
   // Create a new connection with the other port.
-  int gamefd = open_clientfd("ecuiffo.com", (int)port);
+  int gamefd = open_clientfd("localhost", (int)port);
   if (gamefd < 0) {
     perror(NULL);
     exit(0);
@@ -273,16 +285,18 @@ int waitForReady() {
   // Wait for the server to tell us we're all ready.
   int ready = 0;
   while (!ready) {
-    if (read(gamefd, msg, 32) == 0) {
+    if (read(gamefd, msg, 80) == 0) {
       fprintf(stderr, "Opponent has disconnected.\n");
       exit(0);
     }
     if (msg[0] == 1) {
-      memcpy(sentences, msg+2, msg[1]);
+      memcpy(sentences, msg+2, (int)msg[1]);
       sentences[(int)msg[1]] = '\0';
       break;
     }
   }
+
+  printf(" done!\n");
 
   // Close the connection to the main server because it's not needed.
   close(fd);
