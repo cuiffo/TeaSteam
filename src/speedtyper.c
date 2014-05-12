@@ -19,7 +19,9 @@
 #define MAX_SENTENCES 5
 #endif
 
+
 typedef struct sockaddr SA;
+
 
 /*
  * Prototype functions
@@ -31,6 +33,7 @@ int submitMove(int fd, int cur);
 int open_clientfd(char* host, int port);
 int waitForReady();
 int updateOpp(int fd, WINDOW* window);
+
 
 /*
  * Global variables
@@ -44,12 +47,16 @@ int winner = 0;
 char windiff[6];
 
 
-
+/*
+ * Main function.
+ */
 int main() {
 
   // Wait until server connection is established and opponent
   // is confirmed.
   int fd = waitForReady();
+
+  // Set reading to non-blocking.
   fcntl(fd, F_SETFL, O_NONBLOCK);
 
   // Initialize ncurses and some options.
@@ -82,14 +89,15 @@ int main() {
     // Get the next key pressed.
     char c = wgetch(youWindow);
 
+    // If we encountered an error, notify players and then
+    // exit.
     if (c == ERR) {
       if (updateOpp(fd, oppWindow) == 7) {
         winner = -1;
         wclear(youWindow);
         draw(youWindow, youCur, 1);
         sleep(1);
-  
-  nodelay(youWindow, false);
+        nodelay(youWindow, false);
         // Wait until user presses a button.
         wgetch(youWindow);
         close(fd);
@@ -98,36 +106,55 @@ int main() {
       }
     }
 
+    // If we have typed a matching character to the next one,
+    // move up a space. On top of that, if we find spaces 
+    // succeeding the character, skip over those as well.
     if (tolower(c) == tolower(sentences[youCur])) {
       do {
         youCur++;
       } while (sentences[youCur] == ' ');
+
+      // Redraw the screen.
       wclear(youWindow);
       draw(youWindow, youCur, 1);
+
+      // Notify the server of our progression.
       submitMove(fd, youCur);
+
+      // If we're at the end of the string, set a variable.
       if (youCur == strlen(sentences))
         youDone = 1;
     }
     
+    // If both players reached the end, get out of here.
     if (youDone && oppDone)
       break;
   }
 
   // Flush the character buffer.
   while (wgetch(youWindow) != ERR);
-  nodelay(youWindow, false);
 
+  // Wait to hear results from the server about the winner.
+  nodelay(youWindow, false);
   fcntl(fd, F_SETFL, 0);
   char buf[8];
-  read(fd, buf, 8);
+  if (read(fd, buf, 8) == 0) {
+    winner = -1;
+    wclear(youWindow);
+    draw(youWindow, youCur, 1);
+  }
   winner = (int)buf[1];
   memcpy(windiff, buf+2, 6);
   windiff[5] = '\0';
+
+  // Redraw the screens with the new information.
   wclear(youWindow);
   wclear(oppWindow);
   draw(youWindow, 0, 1);
   draw(oppWindow, 0, 0);
 
+  // Wait a second so that user doesn't immediately press a button
+  // and exit.
   sleep(1);
   
   // Wait until user presses a button.
@@ -142,10 +169,16 @@ int main() {
 }
 
 
+/*
+ * Finds out opponent's status from the server only if
+ * an update has occured.
+ */
 int updateOpp(int fd, WINDOW* window) {
   char msg[2];
   bzero(msg, 2);
   ssize_t size = read(fd, msg, 2);
+
+  // We only care about it if the message was OPCODE 2.
   if (size > 0 && msg[0] == 2) {
     oppCur = msg[1];
     wclear(window);
@@ -158,12 +191,19 @@ int updateOpp(int fd, WINDOW* window) {
 }
 
 
-
+/*
+ * Details for drawing a single window. Each user has their own
+ * window so that we can redraw only on the window that needs to
+ * be updated.
+ */
 void draw(WINDOW* window, int cur, int isYou) {
+
+  // Create a border around the area.
   wattrset(window, COLOR_PAIR(1));
   box(window, 0, 0);
   touchwin(window);
 
+  // Check our winner status and print out the appropriate dialogue.
   if (winner == 0) {
     if (isYou) {
       mvwprintw(window, 1, 1, "Type this:");
@@ -188,6 +228,8 @@ void draw(WINDOW* window, int cur, int isYou) {
     }
   } 
 
+  // Print out the sentence that the users must type along with the
+  // progress shown in white.
   int i;
   for (i = 0; i < cur; ++i) {
     mvwprintw(window, 2, 1+i, "%c", sentences[i]);
@@ -287,7 +329,7 @@ int waitForReady() {
   int ready = 0;
   while (!ready) {
     if (read(gamefd, msg, 80) == 0) {
-      fprintf(stderr, "Opponent has disconnected.\n");
+      fprintf(stderr, " Opponent has disconnected.\n");
       exit(0);
     }
     if (msg[0] == 1) {

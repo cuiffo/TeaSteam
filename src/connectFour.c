@@ -375,6 +375,9 @@ int playMove(int col, int player) {
  */
 int waitForReady() {
 
+  printf("Connecting to opponent...");
+  fflush(stdout);
+
   // Tell the server that we want to play a game.
   int fd = open_clientfd("ecuiffo.com", 5774);
   if (fd < 0) {
@@ -401,7 +404,7 @@ int waitForReady() {
   int ready = 0;
   while (!ready) {
     if (read(gamefd, msg, 32) == 0) {
-      fprintf(stderr, "Opponent has disconnected.\n");
+      fprintf(stderr, " Opponent has disconnected.\n");
       exit(0);
     }
     if (msg[0] == 1) {
@@ -409,6 +412,8 @@ int waitForReady() {
       break;
     }
   }
+
+  printf(" done!\n");
 
   // Close the connection to the main server because it's not needed.
   close(fd);

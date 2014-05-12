@@ -11,15 +11,8 @@
 #include <sys/time.h>
 #include <time.h>
 
+
 #define CLIENT_NUM 2
-
-#ifndef SPOTS_Y
-#define SPOTS_Y 6
-#endif
-#ifndef SPOTS_X
-#define SPOTS_X 7
-#endif
-
 
 
 /*
@@ -31,78 +24,39 @@ int closeConnections(int* clientfds);
 void abortGame(int* fds);
 void addSd(int sd, fd_set* set);
 void randMsg(char* buf);
+int getClients(int clientfds[CLIENT_NUM]);
+int progressGame(int clientfds[CLIENT_NUM]);
 
 
+/*
+ * Global variables
+ */
 fd_set readfds;
 int nfsd;
 int endval = 0;
+int positions[2] = {0,0};
+struct timeval times[2];
 
+/*
+ * Main function
+ */
 int main(int argc, char** argv) {
+  
+  // Seed the randomizer.
   srand(time(NULL));
 
-  int listenfd, clientfds[CLIENT_NUM];
-  struct sockaddr_in server, clients[CLIENT_NUM];
-  socklen_t sock_size = sizeof(server);
-
-  // create a new TCP server on a random port and get that port number
-  listenfd = open_listenfd(0);
-  if (listenfd < 0) {
-    perror(NULL);
+  // Get our client connections.
+  int clientfds[CLIENT_NUM];
+  if (getClients(clientfds) == 0)
     return -1;
-  }
-  if (getsockname(listenfd, (struct sockaddr*)&server, &sock_size) < 0) {
-    perror(NULL);
-    close(listenfd);
-    return -1;
-  }
-  unsigned short port = ntohs(server.sin_port);
-  fprintf(stderr, "%hu\n", port);
-  write(STDOUT_FILENO, &port, 2);
-
-  // Initialize our connections to the clients.
-  FD_ZERO(&readfds);
-  if (initConnections(clients, clientfds, listenfd) == 0) {
-    close(listenfd);
-    return -1;
-  }
-
 
   // The game is running, keep listening for moves by players.
-  int positions[2] = {0,0};
-  struct timeval times[2];
-  while(1) {
-    fd_set readfds_c = readfds;
-    struct timeval tv;
-    tv.tv_sec = 5;
-    tv.tv_usec = 0;
-  
-    // Perform select.
-    select(nfsd, &readfds_c, NULL, NULL, &tv);
-
-    int i;
-    for (i = 0; i < CLIENT_NUM; ++i) {
-      if (FD_ISSET(clientfds[i], &readfds_c)) {
-        char msg[2];
-        if (read(clientfds[i], msg, 2) == 0) {
-          abortGame(clientfds);
-          closeConnections(clientfds);
-          exit(0);
-        }
-        positions[i] = (int)msg[1];
-        if (positions[i] == endval)
-          gettimeofday(&(times[i]), NULL);
-        int opponent = (i+1)%2;
-        write(clientfds[opponent], msg, 2);
-      }
-    }
-    if (positions[0] + positions[1] == endval*2)
+  while(1)
+    if (progressGame(clientfds))
       break;
-  }
 
-  struct timeval tv;
-  time_t curtime;
-
-  int i, winner, milldiff;
+  // Check to see who the winner is
+  int i, winner;
   float diff = (times[0].tv_sec + ((float)times[0].tv_usec)/1000000.0) -
     (times[1].tv_sec + ((float)times[1].tv_usec)/1000000.0);
   if (diff < 0)
@@ -110,6 +64,7 @@ int main(int argc, char** argv) {
   else
     winner = 1;
 
+  // Send it to both players.
   diff = fabs(diff);
   char str[6];
   snprintf(str, 6, "%.3f", diff);
@@ -129,6 +84,86 @@ int main(int argc, char** argv) {
   closeConnections(clientfds);
 
   exit(0);
+}
+
+
+/*
+ * Creates a socket and connects to the clients.
+ */
+int getClients(int clientfds[CLIENT_NUM]) {
+
+  // Setup some variables.
+  int listenfd;
+  struct sockaddr_in server, clients[CLIENT_NUM];
+  socklen_t sock_size = sizeof(server);
+
+  // Create a new TCP server on a random port and get that port number
+  listenfd = open_listenfd(0);
+  if (listenfd < 0) {
+    perror(NULL);
+    return 0;
+  }
+  if (getsockname(listenfd, (struct sockaddr*)&server, &sock_size) < 0) {
+    perror(NULL);
+    close(listenfd);
+    return 0;
+  }
+  unsigned short port = ntohs(server.sin_port);
+  fprintf(stderr, "%hu\n", port);
+  if (write(STDOUT_FILENO, &port, 2) == 0) {
+    perror(NULL);
+    return 0;
+  }
+
+  // Initialize our connections to the clients.
+  FD_ZERO(&readfds);
+  if (initConnections(clients, clientfds, listenfd) == 0) {
+    close(listenfd);
+    return 0;
+  }
+
+  return 1;
+}
+
+
+/*
+ * A single iteration in the main function loop -- a single select call
+ * along with the logic to perform whatever is necessary with that 
+ * select.
+ */
+int progressGame(int clientfds[CLIENT_NUM]) {
+
+  // Setup variables for select.
+  fd_set readfds_c = readfds;
+  struct timeval tv;
+  tv.tv_sec = 5;
+  tv.tv_usec = 0;
+
+  // Perform select.
+  select(nfsd, &readfds_c, NULL, NULL, &tv);
+
+  // Handler -- check if either client has a read ready.
+  int i;
+  for (i = 0; i < CLIENT_NUM; ++i) {
+    if (FD_ISSET(clientfds[i], &readfds_c)) {
+      char msg[2];
+      if (read(clientfds[i], msg, 2) == 0) {
+        abortGame(clientfds);
+        closeConnections(clientfds);
+        exit(0);
+      }
+      positions[i] = (int)msg[1];
+      if (positions[i] == endval)
+        gettimeofday(&(times[i]), NULL);
+      int opponent = (i+1)%2;
+      write(clientfds[opponent], msg, 2);
+    }
+  }
+
+  // If both players have reached the end, we're done.
+  if (positions[0] + positions[1] == endval*2)
+    return 0;
+  return 1;
 }
 
 
@@ -167,12 +202,15 @@ int initConnections(struct sockaddr_in* clients, int* clientfds, int listenfd) {
   // Tell the clients we're ready to begin the game.
   char msg[100];
   bzero(msg, 100);
+
+  // Create a random message for the players to type.
   randMsg(msg+2);
   msg[0] = 1;
   msg[1] = 1;
   msg[1] = strlen(msg)-2;
+
+  // Save this global variable for use later.
   endval = msg[1];
-  fprintf(stderr, "%s\n%i\n", msg, msg[1]);
   for (i = 0; i < CLIENT_NUM; ++i) {
 
     // Send the player number with this OPCODE.
@@ -184,12 +222,20 @@ int initConnections(struct sockaddr_in* clients, int* clientfds, int listenfd) {
   return 1;
 }
 
+
+/*
+ * Adds a socket descriptor to the list that we will use
+ * select on.
+ */
 void addSd(int sd, fd_set* set) {
   FD_SET(sd, set);
   nfsd = (nfsd-1 > sd) ? nfsd : sd+1;
 }
 
 
+/*
+ * Creates a random message for the players to type in.
+ */
 void randMsg(char* buf) {
   int num = rand()%10;
   switch (num) {
