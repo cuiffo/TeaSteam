@@ -309,7 +309,7 @@ int waitForReady() {
     perror(NULL);
     exit(0);
   }
-  char msg[80] = "\0\0\0\0\0\0\0\0speedtyper\0\0\0\0\0\0\0\0\0\0\0\0\0\0";
+  char msg[80] = "\0\0\0\0\0\0\0\0speedTyper\0\0\0\0\0\0\0\0\0\0\0\0\0\0";
   write(fd, msg, 32);
 
   // Wait for the response which includes our port we will talk to later on.
