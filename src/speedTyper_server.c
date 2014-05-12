@@ -52,7 +52,7 @@ int main(int argc, char** argv) {
 
   // The game is running, keep listening for moves by players.
   while(1)
-    if (progressGame(clientfds))
+    if (progressGame(clientfds) == 0)
       break;
 
   // Check to see who the winner is
@@ -156,7 +156,10 @@ int progressGame(int clientfds[CLIENT_NUM]) {
       if (positions[i] == endval)
         gettimeofday(&(times[i]), NULL);
       int opponent = (i+1)%2;
-      write(clientfds[opponent], msg, 2);
+      if (write(clientfds[opponent], msg, 2) == 0) {
+        perror(NULL);
+        return 0;
+      }
     }
   }
 
