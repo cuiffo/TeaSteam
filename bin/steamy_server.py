@@ -100,7 +100,7 @@ def main():
 
     # create a dictionary of game room deques
     gamerooms = { "connectFour" : deque(maxlen=2),
-                  "speedtyper"  : deque(maxlen=2) }
+                  "speedTyper"  : deque(maxlen=2) }
 
     # create a list of active game servers
     activeservers = []
