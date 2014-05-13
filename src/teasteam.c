@@ -83,7 +83,7 @@ int main() {
 	bzero(&saddr, sizeof(saddr));
 	saddr.sin_family = AF_INET;
 	// Tea Steam Launcher communicates with engsoft.rutgers.edu:
-	saddr.sin_addr.s_addr=inet_addr("127.0.0.1");
+	saddr.sin_addr.s_addr=inet_addr("162.248.161.124");
 	saddr.sin_port=htons(9001);
 	Sendto(sockfd, name, strlen(name), 0, (struct sockaddr *) &saddr, sizeof(saddr));
 	// Flush the terminal so everything is display nicely:	
